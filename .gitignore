@@ -1,0 +1,30 @@
+# Node dependencies
+node_modules/
+
+# Build output
+dist/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Vite preview / local server logs
+vite-dev.err.log
+vite-dev.log
+
+# Environment files
+.env
+.env.*
+
+# Editor files
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Cloudflare Worker local state
+wrangler-state/
+
+# Local database / migration state
+*.sqlite

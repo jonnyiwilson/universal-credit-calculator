@@ -1,0 +1,9 @@
+name = "uc-assessment-platform"
+compatibility_date = "2026-05-21"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "uc_assessments"
+database_id = "replace-with-cloudflare-d1-database-id"
+migrations_dir = "infra/migrations"
