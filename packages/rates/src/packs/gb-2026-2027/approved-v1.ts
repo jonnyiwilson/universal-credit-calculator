@@ -24,7 +24,11 @@ const rateData = {
     defaultLhaCapMonthly: gbp(120000),
     socialRentUnderOccupancyOneBedroomRate: 0.14,
     socialRentUnderOccupancyTwoPlusBedroomRate: 0.25,
-    defaultNonDependantDeduction: gbp(9360)
+    defaultNonDependantDeduction: gbp(9655),
+    sampleBrmaOneBedroomMonthly: gbp(95000),
+    sampleBrmaTwoBedroomMonthly: gbp(120000),
+    sampleBrmaThreeBedroomMonthly: gbp(145000),
+    sampleBrmaFourBedroomMonthly: gbp(170000)
   },
   childcare: {
     reimbursementPercentage: 0.85,
@@ -39,14 +43,23 @@ const rateData = {
   },
   earnings: {
     taperRate: 0.55,
-    workAllowanceHigher: gbp(63100),
-    workAllowanceLower: gbp(37900),
+    workAllowanceHigher: gbp(71000),
+    workAllowanceLower: gbp(42700),
     surplusEarningsMonthlyThreshold: gbp(250000)
   },
   deductions: {
     defaultRecoveryCapRate: 0.25
   },
-  sanctions: {},
+  sanctions: {
+    dailyReduction100SingleUnder25: gbp(1110),
+    dailyReduction100Single25Plus: gbp(1390),
+    dailyReduction100CoupleBothUnder25: gbp(860),
+    dailyReduction100CoupleOneOrBoth25Plus: gbp(1090),
+    dailyReduction40SingleUnder25: gbp(440),
+    dailyReduction40Single25Plus: gbp(550),
+    dailyReduction40CoupleBothUnder25: gbp(340),
+    dailyReduction40CoupleOneOrBoth25Plus: gbp(430)
+  },
   benefitCap: {
     monthlyOutsideLondonCoupleOrParent: gbp(183500),
     monthlyOutsideLondonSingleNoChildren: gbp(122900),

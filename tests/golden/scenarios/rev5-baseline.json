@@ -1,0 +1,29 @@
+{
+  "scenarioId": "REV5-BASELINE-SINGLE-25",
+  "title": "Single claimant 25 or over baseline standard allowance",
+  "category": "standard-allowance",
+  "policyVersion": "2026-2027",
+  "ratePackVersion": "gb-2026-2027-approved-v1",
+  "rulePackVersion": "uc-rev4-2026.2",
+  "sourceRefs": [
+    "GOV_UK_UC_WHAT_YOU_GET_2026"
+  ],
+  "inputEvents": [],
+  "assessmentPeriods": [
+    {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-31"
+    }
+  ],
+  "expectedArtifacts": [
+    {
+      "artifactType": "award_composition",
+      "expected": {
+        "standardAllowancePence": 42490
+      }
+    }
+  ],
+  "reviewedBy": "rev5-policy-review-placeholder",
+  "reviewedAt": "2026-05-22T00:00:00.000Z",
+  "reviewStatus": "approved"
+}

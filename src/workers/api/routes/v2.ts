@@ -3,8 +3,10 @@ import { createEntityId, stableHash } from "../../../../packages/shared/src"
 import { listRatePacksV2 } from "../../../../packages/rates/src"
 import { AddCaseEventRequestV2Schema, CreateCaseRequestV2Schema, CalculateAssessmentPeriodRequestV2Schema } from "../../../../packages/validation/src"
 import { AppError } from "../../../lib/errors/AppError"
-import { appendCaseEventV2, caseIdForAssessmentPeriod, getIdempotentResponse, loadCaseForAssessmentPeriod, putIdempotentResponse, saveCalculationArtifactV2, saveCaseV2 } from "../repositories/v2CaseRepository"
+import { appendCaseEventV2, caseIdForArtifact, caseIdForAssessmentPeriod, getIdempotentResponse, loadCaseForAssessmentPeriod, putIdempotentResponse, saveCalculationArtifactV2, saveCaseV2, saveReplayRunV2 } from "../repositories/v2CaseRepository"
 import { calculateAssessmentPeriodV2 } from "../services/v2CalculationService"
+import { replayCalculationArtifactV2 } from "../services/replayService"
+import { getHousingLhaRates, listHousingBrmaRegions, resolveHousingArea } from "../services/housingRegionService"
 import { requireCaseAccess } from "../middleware/v2Access"
 import type { Env } from "../types"
 
@@ -52,6 +54,30 @@ export async function handleV2Request(request: Request, env: Env, url: URL): Pro
       effectiveTo: approved.effectiveTo,
       checksum: approved.checksum
     })
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/v2/housing/brma-regions") {
+    const asOfDate = url.searchParams.get("asOfDate") ?? new Date().toISOString().slice(0, 10)
+    return json({ brmaRegions: await listHousingBrmaRegions(env, asOfDate) })
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/v2/housing/lha-rates") {
+    const brmaId = url.searchParams.get("brmaId")
+    const asOfDate = url.searchParams.get("asOfDate") ?? new Date().toISOString().slice(0, 10)
+    if (!brmaId) throw new AppError("VALIDATION_FAILED", "brmaId is required.", 400)
+    const rates = await getHousingLhaRates(env, brmaId, asOfDate)
+    if (!rates) throw new AppError("ASSESSMENT_NOT_FOUND", "BRMA rates were not found.", 404)
+    return json(rates)
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/v2/housing/resolve-area") {
+    const asOfDate = url.searchParams.get("asOfDate") ?? new Date().toISOString().slice(0, 10)
+    return json(await resolveHousingArea(env, {
+      brmaId: url.searchParams.get("brmaId") ?? undefined,
+      postcode: url.searchParams.get("postcode") ?? undefined,
+      localAuthorityCode: url.searchParams.get("localAuthorityCode") ?? undefined,
+      asOfDate
+    }))
   }
 
   if (request.method === "POST" && url.pathname === "/api/v2/cases") {
@@ -148,6 +174,45 @@ export async function handleV2Request(request: Request, env: Env, url: URL): Pro
     })
     await putIdempotentResponse(env, payload.clientRequestId, route, calculation.response, now, requestHash)
     return json(calculation.response)
+  }
+
+  const replayMatch = url.pathname.match(/^\/api\/v2\/calculation-artifacts\/([^/]+)\/(replay|compare)$/)
+  if (request.method === "POST" && replayMatch) {
+    const artifactId = decodeURIComponent(replayMatch[1])
+    const caseId = await caseIdForArtifact(env, artifactId)
+    if (!caseId) throw new AppError("ASSESSMENT_NOT_FOUND", "Calculation artifact was not found.", 404)
+    const accessResponse = await requireCaseAccess(env, request, url, caseId)
+    if (accessResponse) return accessResponse
+
+    const now = new Date().toISOString()
+    const replay = await replayCalculationArtifactV2({ env, artifactId, now })
+    if (!replay) throw new AppError("ASSESSMENT_NOT_FOUND", "Calculation artifact could not be replayed.", 404)
+    const replayRunId = await saveReplayRunV2(env, {
+      artifactId,
+      status: replay.status,
+      diffHash: replay.diffHash,
+      diffJson: replay,
+      now
+    })
+    return json({ replayRunId, ...replay })
+  }
+
+  const replayReportMatch = url.pathname.match(/^\/api\/v2\/calculation-artifacts\/([^/]+)\/replay-report$/)
+  if (request.method === "GET" && replayReportMatch) {
+    const artifactId = decodeURIComponent(replayReportMatch[1])
+    const caseId = await caseIdForArtifact(env, artifactId)
+    if (!caseId) throw new AppError("ASSESSMENT_NOT_FOUND", "Calculation artifact was not found.", 404)
+    const accessResponse = await requireCaseAccess(env, request, url, caseId)
+    if (accessResponse) return accessResponse
+    const now = new Date().toISOString()
+    const replay = await replayCalculationArtifactV2({ env, artifactId, now })
+    if (!replay) throw new AppError("ASSESSMENT_NOT_FOUND", "Calculation artifact could not be replayed.", 404)
+    return json({
+      reportType: "replay_report",
+      generatedAt: now,
+      artifactId,
+      replay
+    })
   }
 
   return json({ error: { code: "NOT_FOUND", message: "Route not found." } }, { status: 404 })

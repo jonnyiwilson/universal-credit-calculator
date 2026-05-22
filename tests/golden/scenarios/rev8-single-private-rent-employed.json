@@ -1,0 +1,93 @@
+{
+  "scenarioId": "REV8-SINGLE-PRIVATE-RENT-EMPLOYED",
+  "title": "Single claimant private rent with manual BRMA and two manual employment payments",
+  "category": "rev8-trusted-slice",
+  "policyVersion": "2026-2027",
+  "ratePackVersion": "gb-2026-2027-approved-v1",
+  "rulePackVersion": "uc-rev4-2026.2",
+  "sourceRefs": [
+    "GOV_UK_UC_WHAT_YOU_GET_2026",
+    "GOV_UK_UC_HOUSING_2026",
+    "GOV_UK_UC_LHA_RATES_2026_2027"
+  ],
+  "inputEvents": [
+    {
+      "eventType": "housing_declared",
+      "occurredAt": "2026-05-01",
+      "effectiveFrom": "2026-05-01",
+      "payload": {
+        "tenure": "private_rent",
+        "brmaCode": "brma_ashford",
+        "brmaName": "Ashford",
+        "lhaBedroomCategory": "one_bedroom",
+        "lhaMonthlyRate": { "amountPence": 75000, "currency": "GBP" },
+        "lhaWeeklyRate": { "amountPence": 17308, "currency": "GBP" },
+        "lhaDatasetVersion": "england-lha-2026-2027",
+        "lhaDatasetChecksum": "071b4d400b5f27b1f52ca239ab6d1cbe77ca03d71fac963acd3625f221047391",
+        "eligibleRent": { "amountPence": 80000, "currency": "GBP" },
+        "eligibleServiceCharges": { "amountPence": 0, "currency": "GBP" },
+        "rentFrequency": "monthly",
+        "liabilityVerified": true,
+        "landlordVerified": false
+      }
+    },
+    {
+      "eventType": "income_reported",
+      "occurredAt": "2026-05-10",
+      "effectiveFrom": "2026-05-10",
+      "payload": {
+        "source": "employment_manual",
+        "receivedDate": "2026-05-10",
+        "netAmount": { "amountPence": 50000, "currency": "GBP" },
+        "pensionContribution": { "amountPence": 1000, "currency": "GBP" }
+      }
+    },
+    {
+      "eventType": "income_reported",
+      "occurredAt": "2026-05-20",
+      "effectiveFrom": "2026-05-20",
+      "payload": {
+        "source": "employment_manual",
+        "receivedDate": "2026-05-20",
+        "netAmount": { "amountPence": 30000, "currency": "GBP" },
+        "pensionContribution": { "amountPence": 0, "currency": "GBP" }
+      }
+    },
+    {
+      "eventType": "capital_declared",
+      "occurredAt": "2026-05-01",
+      "effectiveFrom": "2026-05-01",
+      "payload": {
+        "type": "cash",
+        "value": { "amountPence": 500000, "currency": "GBP" },
+        "valuationDate": "2026-05-01",
+        "valuationConfidence": "declared"
+      }
+    }
+  ],
+  "assessmentPeriods": [
+    {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-31"
+    }
+  ],
+  "expectedArtifacts": [
+    {
+      "artifactType": "supported_slice_rev8",
+      "expected": {
+        "status": "supported"
+      }
+    },
+    {
+      "artifactType": "award_composition",
+      "expected": {
+        "maximumEntitlementPence": 117490,
+        "earnedIncomeDeductionPence": 43450,
+        "finalAwardPence": 74040
+      }
+    }
+  ],
+  "reviewedBy": "rev8-policy-review-placeholder",
+  "reviewedAt": "2026-05-22T00:00:00.000Z",
+  "reviewStatus": "approved"
+}

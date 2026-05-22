@@ -1,0 +1,46 @@
+{
+  "scenarioId": "REV6-POSTCODE-BRMA-RESOLUTION",
+  "title": "Private rent postcode prefix resolves to BRMA before LHA cap calculation",
+  "category": "housing-region-resolution",
+  "policyVersion": "2026-2027",
+  "ratePackVersion": "gb-2026-2027-approved-v1",
+  "rulePackVersion": "uc-rev5-2026.1",
+  "sourceRefs": [
+    "GOV_UK_UC_LHA_RATES_2026_2027",
+    "OFFICIAL_POSTCODE_BRMA_MAPPING_DATASET_REQUIRED"
+  ],
+  "inputEvents": [
+    {
+      "eventType": "housing_declared",
+      "occurredAt": "2026-05-01",
+      "effectiveFrom": "2026-05-01",
+      "payload": {
+        "tenure": "private_rent",
+        "postcode": "TN23 1AA",
+        "brmaCode": "brma_ashford",
+        "brmaName": "Ashford",
+        "lhaBedroomCategory": "one_bedroom",
+        "lhaDatasetVersion": "england-lha-2026-2027"
+      }
+    }
+  ],
+  "assessmentPeriods": [
+    {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-31"
+    }
+  ],
+  "expectedArtifacts": [
+    {
+      "artifactType": "area_resolution",
+      "expected": {
+        "resolutionMethod": "postcode",
+        "postcodePrefix": "TN23",
+        "brmaId": "brma_ashford"
+      }
+    }
+  ],
+  "reviewedBy": "rev6-geography-review-placeholder",
+  "reviewedAt": "2026-05-22T00:00:00.000Z",
+  "reviewStatus": "draft"
+}

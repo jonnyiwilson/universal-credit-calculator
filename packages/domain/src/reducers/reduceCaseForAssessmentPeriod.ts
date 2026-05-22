@@ -56,7 +56,16 @@ export function reduceCaseForAssessmentPeriod(input: CaseReductionInput): Reduct
       housing = {
         housingId: String(payload.housingId ?? createEntityId("housing")),
         tenure: payload.tenure as never,
+        postcode: payload.postcode ? String(payload.postcode) : undefined,
+        localAuthorityCode: payload.localAuthorityCode ? String(payload.localAuthorityCode) : undefined,
+        localAuthorityName: payload.localAuthorityName ? String(payload.localAuthorityName) : undefined,
         brmaCode: payload.brmaCode ? String(payload.brmaCode) : undefined,
+        brmaName: payload.brmaName ? String(payload.brmaName) : undefined,
+        lhaBedroomCategory: payload.lhaBedroomCategory as never,
+        lhaMonthlyRate: payload.lhaMonthlyRate ? moneyFromPayload(payload.lhaMonthlyRate) : undefined,
+        lhaWeeklyRate: payload.lhaWeeklyRate ? moneyFromPayload(payload.lhaWeeklyRate) : undefined,
+        lhaDatasetVersion: payload.lhaDatasetVersion ? String(payload.lhaDatasetVersion) : undefined,
+        lhaDatasetChecksum: payload.lhaDatasetChecksum ? String(payload.lhaDatasetChecksum) : undefined,
         bedroomEntitlement: typeof payload.bedroomEntitlement === "number" ? payload.bedroomEntitlement : undefined,
         bedroomsOccupied: typeof payload.bedroomsOccupied === "number" ? payload.bedroomsOccupied : undefined,
         eligibleRent: moneyFromPayload(payload.eligibleRent),
@@ -64,7 +73,14 @@ export function reduceCaseForAssessmentPeriod(input: CaseReductionInput): Reduct
         rentFrequency: payload.rentFrequency as never ?? "monthly",
         liabilityVerified: payload.liabilityVerified === true,
         landlordVerified: payload.landlordVerified === true,
-        nonDependants: [],
+        nonDependants: Array.isArray(payload.nonDependants) ? (payload.nonDependants as Array<Record<string, unknown>>).map((person) => ({
+          personId: String(person.personId ?? createEntityId("nondep")),
+          dateOfBirth: String(person.dateOfBirth ?? event.occurredAt),
+          relationshipToClaimant: String(person.relationshipToClaimant ?? "unknown"),
+          benefitsReceived: Array.isArray(person.benefitsReceived) ? person.benefitsReceived as never : [],
+          exemptFromDeduction: person.exemptFromDeduction === true,
+          evidenceRefs: event.evidenceRefs
+        })) : [],
         evidenceRefs: event.evidenceRefs
       }
     }
@@ -86,7 +102,7 @@ export function reduceCaseForAssessmentPeriod(input: CaseReductionInput): Reduct
       }
       incomeEventsFromTimeline.push({
         incomeEventId: String(payload.incomeEventId ?? event.eventId),
-        adultId: String(payload.adultId ?? adults[0]?.adultId ?? "unknown"),
+        adultId: String(payload.adultId ?? adults.find((adult) => adult.role === payload.adultRole)?.adultId ?? adults[0]?.adultId ?? "unknown"),
         source: payload.source as never ?? "employment_manual",
         receivedDate: String(payload.receivedDate ?? event.occurredAt),
         earnedPeriodStart: payload.earnedPeriodStart ? String(payload.earnedPeriodStart) : undefined,
@@ -136,7 +152,25 @@ export function reduceCaseForAssessmentPeriod(input: CaseReductionInput): Reduct
       }
     }
     if (event.type === "sanction_reported") {
-      sanctionState.push({ status: String(payload.status ?? "active"), level: payload.level ? String(payload.level) : undefined, amountPence: moneyFromPayload(payload.amount).amountPence })
+      sanctionState.push({
+        status: String(payload.status ?? "active"),
+        level: payload.level ? String(payload.level) : undefined,
+        amountPence: payload.amount ? moneyFromPayload(payload.amount).amountPence : undefined,
+        rateCategory: payload.rateCategory === "40" ? "40" : payload.rateCategory === "100" ? "100" : undefined,
+        startDate: payload.startDate ? String(payload.startDate) : event.effectiveFrom ?? event.occurredAt,
+        endDate: payload.endDate ? String(payload.endDate) : undefined,
+        sanctionedAdultId: payload.sanctionedAdultId ? String(payload.sanctionedAdultId) : undefined
+      })
+    }
+    if (event.type === "assessment_revised" && Array.isArray(payload.deductions)) {
+      for (const deduction of payload.deductions as Array<Record<string, unknown>>) {
+        deductionState.push({
+          type: String(deduction.type ?? "other"),
+          amountPence: moneyFromPayload(deduction.amount).amountPence,
+          priority: typeof deduction.priority === "number" ? deduction.priority : undefined,
+          recoveryClass: deduction.recoveryClass as never
+        })
+      }
     }
     if (event.type === "migration_notice_reported") {
       tpState = {

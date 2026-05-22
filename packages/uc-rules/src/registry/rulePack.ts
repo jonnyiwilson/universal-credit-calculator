@@ -11,6 +11,7 @@ import { housingDeterminationRule } from "../housing/housingRules"
 import { incomeAggregationRule, workAllowanceRule } from "../income/incomeRules"
 import { sanctionsDeductionsRule } from "../sanctions-deductions/sanctionsDeductionsRules"
 import { selfEmploymentAssessmentRule } from "../self-employment/selfEmploymentRules"
+import { rev8SupportedSliceRule } from "../supported-slice/rev8SupportedSliceRule"
 import { transitionalProtectionRule } from "../transitional-protection/transitionalProtectionRules"
 import { unsupportedEligibilityRule } from "../eligibility/unsupportedEligibilityRules"
 import type { PolicyRule, RulePack } from "../../../rules-engine/src"
@@ -29,6 +30,7 @@ export const ucRev3Rules: PolicyRule<ReducedAssessmentPeriodState, unknown>[] = 
   transitionalProtectionRule,
   sanctionsDeductionsRule,
   benefitCapRule,
+  rev8SupportedSliceRule,
   awardCompositionRule
 ]
 

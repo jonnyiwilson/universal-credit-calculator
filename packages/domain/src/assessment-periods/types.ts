@@ -40,5 +40,7 @@ export interface CalculationArtifact {
   outputHash: string
   reducerVersion?: string
   reducerHash?: string
+  replayVerifiedAt?: string
+  replayStatus?: "matched" | "matched_with_warnings" | "failed"
   createdAt: string
 }

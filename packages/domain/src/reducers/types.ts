@@ -51,8 +51,8 @@ export interface ReducedAssessmentPeriodState {
   }
   benefitCapState?: { geography?: "london" | "outside_london"; exempt?: boolean }
   tpState?: { status: string; baselineAmountPence?: number; currentAmountPence?: number }
-  sanctionState: Array<{ status: string; level?: string; amountPence?: number }>
-  deductionState: Array<{ type: string; amountPence: number; priority?: number }>
+  sanctionState: Array<{ status: string; level?: string; amountPence?: number; rateCategory?: "100" | "40"; startDate?: string; endDate?: string; sanctionedAdultId?: EntityId }>
+  deductionState: Array<{ type: string; amountPence: number; priority?: number; recoveryClass?: "ordinary" | "fraud" | "third_party" | "hardship" }>
   effectiveEventIds: EntityId[]
   supersededEventIds: EntityId[]
   revisionReasons: DecisionReason[]

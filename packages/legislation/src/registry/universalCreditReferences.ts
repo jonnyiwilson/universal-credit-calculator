@@ -25,6 +25,30 @@ export const universalCreditReferences: LegislativeReferenceRegistry = {
     retrievedAt: "2026-05-21",
     appliesToJurisdiction: "GB"
   },
+  GOV_UK_UC_SANCTIONS_2026: {
+    sourceType: "govuk",
+    title: "GOV.UK Universal Credit sanctions",
+    url: "https://www.gov.uk/guidance/universal-credit-sanctions",
+    effectiveFrom: "2026-04-06",
+    retrievedAt: "2026-05-22",
+    appliesToJurisdiction: "GB"
+  },
+  GOV_UK_UC_EARNINGS_2026: {
+    sourceType: "govuk",
+    title: "GOV.UK Universal Credit and earnings",
+    url: "https://www.gov.uk/guidance/universal-credit-and-earnings",
+    effectiveFrom: "2026-04-06",
+    retrievedAt: "2026-05-22",
+    appliesToJurisdiction: "GB"
+  },
+  GOV_UK_UC_LHA_2026: {
+    sourceType: "govuk",
+    title: "GOV.UK Universal Credit Local Housing Allowance rates",
+    url: "https://www.gov.uk/government/collections/universal-credit-local-housing-allowance-rates",
+    effectiveFrom: "2026-04-06",
+    retrievedAt: "2026-05-22",
+    appliesToJurisdiction: "GB"
+  },
   GOV_UK_UC_HOUSING_2026: {
     sourceType: "govuk",
     title: "GOV.UK Housing costs and Universal Credit: what you can get",

@@ -57,7 +57,7 @@ describe("REV3 rule artifacts", () => {
     )
 
     const artifactTypes = result.evaluations.flatMap((evaluation) => evaluation.derivedArtifacts.map((artifact) => artifact.artifactType))
-    expect(result.status).toBe("determined")
+    expect(result.status).toBe("unsupported")
     expect(artifactTypes).toEqual(
       expect.arrayContaining([
         "unsupported_case_screening",
@@ -66,6 +66,7 @@ describe("REV3 rule artifacts", () => {
         "capital_assessment",
         "housing_determination",
         "work_allowance_determination",
+        "supported_slice_rev8",
         "award_composition"
       ])
     )

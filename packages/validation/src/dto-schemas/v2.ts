@@ -18,6 +18,16 @@ const AdultDtoSchema = z.object({
 
 const HousingDtoSchema = z.object({
   tenure: z.enum(["no_housing_costs", "private_rent", "social_rent", "owner_occupier", "temporary_accommodation", "specified_supported", "refuge", "supported_without_care"]),
+  postcode: z.string().optional(),
+  localAuthorityCode: z.string().optional(),
+  localAuthorityName: z.string().optional(),
+  brmaCode: z.string().optional(),
+  brmaName: z.string().optional(),
+  lhaBedroomCategory: z.enum(["shared_accommodation", "one_bedroom", "two_bedroom", "three_bedroom", "four_bedroom"]).optional(),
+  lhaMonthlyRate: MoneySchema.optional(),
+  lhaWeeklyRate: MoneySchema.optional(),
+  lhaDatasetVersion: z.string().optional(),
+  lhaDatasetChecksum: z.string().optional(),
   eligibleRent: MoneySchema.default({ amountPence: 0, currency: "GBP" }),
   eligibleServiceCharges: MoneySchema.default({ amountPence: 0, currency: "GBP" }),
   rentFrequency: z.enum(["weekly", "fortnightly", "four_weekly", "monthly"]).default("monthly"),

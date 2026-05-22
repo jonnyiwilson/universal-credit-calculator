@@ -41,6 +41,16 @@ export interface SelfEmploymentInput {
 
 export interface HousingInput {
   tenure: HousingTenure
+  postcode?: string
+  localAuthorityCode?: string
+  localAuthorityName?: string
+  brmaCode?: string
+  brmaName?: string
+  lhaBedroomCategory?: "shared_accommodation" | "one_bedroom" | "two_bedroom" | "three_bedroom" | "four_bedroom"
+  lhaMonthlyRate?: Money
+  lhaWeeklyRate?: Money
+  lhaDatasetVersion?: string
+  lhaDatasetChecksum?: string
   eligibleRentMonthly: Money
   eligibleServiceChargesMonthly: Money
   localHousingAllowanceMonthly?: Money

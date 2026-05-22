@@ -137,6 +137,15 @@ export interface HousingArrangement {
   tenure: "no_housing_costs" | "private_rent" | "social_rent" | "owner_occupier" | "temporary_accommodation" | "specified_supported" | "refuge" | "supported_without_care"
   addressRegion?: string
   brmaCode?: string
+  postcode?: string
+  localAuthorityCode?: string
+  localAuthorityName?: string
+  brmaName?: string
+  lhaBedroomCategory?: "shared_accommodation" | "one_bedroom" | "two_bedroom" | "three_bedroom" | "four_bedroom"
+  lhaMonthlyRate?: Money
+  lhaWeeklyRate?: Money
+  lhaDatasetVersion?: string
+  lhaDatasetChecksum?: string
   bedroomEntitlement?: number
   bedroomsOccupied?: number
   eligibleRent: Money

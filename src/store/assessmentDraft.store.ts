@@ -1,8 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { AssessmentInput } from "../domain/types/assessment"
-import type { CalculationResult } from "../domain/types/calculation"
-import { createDefaultAssessmentInput } from "../tests/fixtures/defaultAssessment"
+import { createDefaultInterviewDraft, type ClaimantInterviewDraft } from "../features/assessment-wizard/interviewDraft"
 
 export type AssessmentStep =
   | "household"
@@ -26,12 +24,10 @@ interface StepValidationState {
 interface AssessmentDraftState {
   draftId: string
   currentStep: AssessmentStep
-  input: AssessmentInput
+  interview: ClaimantInterviewDraft
   validationState: Partial<Record<AssessmentStep, StepValidationState>>
-  lastCalculatedResult?: CalculationResult
   setCurrentStep: (step: AssessmentStep) => void
-  setInput: (input: AssessmentInput) => void
-  setLastCalculatedResult: (result: CalculationResult) => void
+  setInterview: (interview: ClaimantInterviewDraft) => void
   resetDraft: () => void
 }
 
@@ -42,18 +38,16 @@ export const useAssessmentDraftStore = create<AssessmentDraftState>()(
     (set) => ({
       draftId: newDraftId(),
       currentStep: "household",
-      input: createDefaultAssessmentInput(),
+      interview: createDefaultInterviewDraft(),
       validationState: {},
       setCurrentStep: (step) => set({ currentStep: step }),
-      setInput: (input) => set({ input }),
-      setLastCalculatedResult: (result) => set({ lastCalculatedResult: result }),
+      setInterview: (interview) => set({ interview }),
       resetDraft: () =>
         set({
           draftId: newDraftId(),
           currentStep: "household",
-          input: createDefaultAssessmentInput(),
-          validationState: {},
-          lastCalculatedResult: undefined
+          interview: createDefaultInterviewDraft(),
+          validationState: {}
         })
     }),
     {

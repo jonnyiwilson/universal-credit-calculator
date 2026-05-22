@@ -37,6 +37,11 @@ export async function caseIdForAssessmentPeriod(env: Env, assessmentPeriodId: st
   return row ? String(row.case_id) : null
 }
 
+export async function caseIdForArtifact(env: Env, artifactId: string): Promise<string | null> {
+  const row = await env.DB.prepare("SELECT case_id FROM calculation_artifacts_v2 WHERE artifact_id = ?").bind(artifactId).first()
+  return row ? String(row.case_id) : null
+}
+
 export async function putIdempotentResponse(env: Env, key: string, route: string, response: unknown, now: string, requestHash?: string): Promise<void> {
   const responseJson = JSON.stringify(response)
   await env.DB.prepare("INSERT OR REPLACE INTO idempotency_keys_v2 (key, route, response_json, created_at, request_hash, expires_at) VALUES (?, ?, ?, ?, COALESCE((SELECT request_hash FROM idempotency_keys_v2 WHERE key = ? AND route = ?), ?), ?)")
@@ -205,6 +210,54 @@ export async function appendCaseEventV2(env: Env, input: { caseId: string; event
     nextSequence
   ).run()
   return nextSequence
+}
+
+export async function loadCalculationArtifactV2(env: Env, artifactId: string): Promise<CalculationArtifact | null> {
+  const row = await env.DB.prepare("SELECT * FROM calculation_artifacts_v2 WHERE artifact_id = ?").bind(artifactId).first()
+  if (!row) return null
+  return {
+    artifactId: String(row.artifact_id),
+    caseId: String(row.case_id),
+    assessmentPeriodId: String(row.assessment_period_id),
+    snapshotId: String(row.snapshot_id),
+    calculationMode: String(row.calculation_mode) as CalculationArtifact["calculationMode"],
+    status: String(row.status) as CalculationArtifact["status"],
+    finalAwardPence: row.final_award_pence === null || row.final_award_pence === undefined ? undefined : Number(row.final_award_pence),
+    ratePackVersion: String(row.rate_pack_version),
+    ratePackChecksum: String(row.rate_pack_checksum),
+    rulePackVersion: String(row.rule_pack_version),
+    rulePackChecksum: String(row.rule_pack_checksum),
+    inputHash: String(row.input_hash),
+    outputHash: String(row.output_hash),
+    reducerVersion: row.reducer_version ? String(row.reducer_version) : undefined,
+    reducerHash: row.reducer_hash ? String(row.reducer_hash) : undefined,
+    replayVerifiedAt: row.replay_verified_at ? String(row.replay_verified_at) : undefined,
+    replayStatus: row.replay_status ? String(row.replay_status) as CalculationArtifact["replayStatus"] : undefined,
+    createdAt: String(row.created_at)
+  }
+}
+
+export async function saveReplayRunV2(env: Env, input: {
+  artifactId: string
+  status: string
+  diffHash: string
+  diffJson: unknown
+  now: string
+}) {
+  const replayRunId = createEntityId("replay")
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO replay_runs_v2 (
+        replay_run_id, artifact_id, status, diff_hash, diff_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(replayRunId, input.artifactId, input.status, input.diffHash, JSON.stringify(input.diffJson), input.now),
+    env.DB.prepare(
+      `UPDATE calculation_artifacts_v2
+       SET replay_verified_at = ?, replay_status = ?
+       WHERE artifact_id = ?`
+    ).bind(input.now, input.status, input.artifactId)
+  ])
+  return replayRunId
 }
 
 export async function saveCalculationArtifactV2(env: Env, input: {

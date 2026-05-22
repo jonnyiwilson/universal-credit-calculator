@@ -1,4 +1,4 @@
-import { createEntityId, gbp, stableHash, zeroGbp } from "../../../shared/src"
+import { addMoney, createEntityId, stableHash, zeroGbp } from "../../../shared/src"
 import type { ReducedAssessmentPeriodState, UnsupportedCase } from "../../../domain/src"
 import { universalCreditReferences } from "../../../legislation/src"
 import type { PolicyRule } from "../../../rules-engine/src"
@@ -33,8 +33,23 @@ export const benefitCapRule: PolicyRule<ReducedAssessmentPeriodState, BenefitCap
       : hasChildren || hasPartner ? capRates.monthlyOutsideLondonCoupleOrParent : capRates.monthlyOutsideLondonSingleNoChildren
     const capAmount = typeof cap === "object" ? cap : undefined
     const unsupportedCases: UnsupportedCase[] = []
-    const likelyCapExposure = input.children.length > 0 || Boolean(input.housing && input.housing.tenure !== "no_housing_costs")
-    if (!benefitCapState?.geography && !exempt && likelyCapExposure) {
+    const standardRates = context.ratePack.rates.standardAllowances
+    const claimant = input.adults.find((adult) => adult.role === "claimant")
+    const partner = input.adults.find((adult) => adult.role === "partner")
+    const claimantAge = claimant ? ageAt(claimant.dateOfBirth, context.assessmentPeriod.startDate) : 25
+    const partnerAge = partner ? ageAt(partner.dateOfBirth, context.assessmentPeriod.startDate) : undefined
+    const standardAllowance = partner
+      ? claimantAge < 25 && (partnerAge ?? 25) < 25 ? standardRates.coupleBothUnder25 : standardRates.coupleOneOrBoth25Plus
+      : claimantAge < 25 ? standardRates.singleUnder25 : standardRates.single25Plus
+    const possibleEntitlement = addMoney(
+      standardAllowance && typeof standardAllowance === "object" ? standardAllowance : zeroGbp(),
+      input.housing?.lhaMonthlyRate ?? zeroGbp()
+    )
+    const minimumRelevantCap = hasChildren || hasPartner
+      ? capRates.monthlyOutsideLondonCoupleOrParent
+      : capRates.monthlyOutsideLondonSingleNoChildren
+    const capCouldApply = minimumRelevantCap && typeof minimumRelevantCap === "object" && possibleEntitlement.amountPence > minimumRelevantCap.amountPence
+    if (!benefitCapState?.geography && !exempt && capCouldApply) {
       unsupportedCases.push({
         unsupportedCaseId: createEntityId("unsupported"),
         code: "BENEFIT_CAP_GEOGRAPHY_UNKNOWN",
@@ -82,4 +97,13 @@ export const benefitCapRule: PolicyRule<ReducedAssessmentPeriodState, BenefitCap
 function findDerived<T>(context: unknown, artifactType: string): T | undefined {
   const evaluations = (context as { evaluations?: Array<{ derivedArtifacts: Array<{ artifactType: string; value: unknown }> }> }).evaluations ?? []
   return evaluations.flatMap((evaluation) => evaluation.derivedArtifacts).find((artifact) => artifact.artifactType === artifactType)?.value as T | undefined
+}
+
+function ageAt(dateOfBirth: string, atDate: string) {
+  const birth = new Date(dateOfBirth)
+  const at = new Date(atDate)
+  let age = at.getUTCFullYear() - birth.getUTCFullYear()
+  const monthDelta = at.getUTCMonth() - birth.getUTCMonth()
+  if (monthDelta < 0 || (monthDelta === 0 && at.getUTCDate() < birth.getUTCDate())) age -= 1
+  return age
 }

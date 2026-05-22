@@ -48,6 +48,16 @@ export const SelfEmploymentSchema = z.object({
 
 export const HousingSchema = z.object({
   tenure: z.enum(["none", "private_rent", "social_rent", "owner"]),
+  postcode: z.string().optional(),
+  localAuthorityCode: z.string().optional(),
+  localAuthorityName: z.string().optional(),
+  brmaCode: z.string().optional(),
+  brmaName: z.string().optional(),
+  lhaBedroomCategory: z.enum(["shared_accommodation", "one_bedroom", "two_bedroom", "three_bedroom", "four_bedroom"]).optional(),
+  lhaMonthlyRate: MoneyAmountSchema.optional(),
+  lhaWeeklyRate: MoneyAmountSchema.optional(),
+  lhaDatasetVersion: z.string().optional(),
+  lhaDatasetChecksum: z.string().optional(),
   eligibleRentMonthly: MoneyAmountSchema,
   eligibleServiceChargesMonthly: MoneyAmountSchema,
   localHousingAllowanceMonthly: MoneyAmountSchema.optional(),

@@ -1,4 +1,5 @@
 import type { AssessmentInput } from "../../domain/types/assessment"
+import { buildCaseEventDrafts, type CaseEventDraft, type ClaimantInterviewDraft } from "../../features/assessment-wizard/interviewDraft"
 
 export interface CreateCaseV2Response {
   caseId: string
@@ -19,11 +20,57 @@ export interface CalculationResponseV2 {
     rulePackVersion: string
     inputHash: string
     outputHash: string
+    replayStatus?: string
   }
   assumptions: Array<{ assumptionId: string; severity: string; code: string; message: string }>
   unsupportedCases: Array<{ unsupportedCaseId: string; code: string; severity: string; userMessage: string; reason: string }>
   derivedArtifacts: Array<{ artifactType: string; schemaVersion: string; value: unknown }>
   tracePreview: Array<{ ruleId: string; ruleVersion: string; stage: string; output: unknown }>
+}
+
+export interface BrmaRegionOption {
+  brmaId: string
+  name: string
+  country: string
+}
+
+export interface LhaRateOption {
+  bedroomCategory: "shared_accommodation" | "one_bedroom" | "two_bedroom" | "three_bedroom" | "four_bedroom"
+  weeklyRate: { amountPence: number; currency: "GBP" }
+  monthlyRate: { amountPence: number; currency: "GBP" }
+  sourceDatasetVersion: string
+  checksum: string
+}
+
+export interface ResolvedHousingArea {
+  status: "resolved" | "unsupported"
+  code?: string
+  message?: string
+  resolutionMethod?: "brma" | "postcode" | "local_authority"
+  postcodeNormalized?: string
+  postcodePrefix?: string
+  postcodeMatchPrecision?: string
+  mappingDatasetVersion?: string
+  mappingChecksum?: string
+  region?: BrmaRegionOption
+  rates?: LhaRateOption[]
+}
+
+export async function listBrmaRegionsV2(): Promise<BrmaRegionOption[]> {
+  const response = await fetch("/api/v2/housing/brma-regions")
+  if (!response.ok) throw new Error(`BRMA list failed: ${response.status}`)
+  const payload = await response.json() as { brmaRegions: BrmaRegionOption[] }
+  return payload.brmaRegions
+}
+
+export async function resolveHousingAreaV2(input: { brmaId?: string; postcode?: string; localAuthorityCode?: string }): Promise<ResolvedHousingArea> {
+  const params = new URLSearchParams()
+  if (input.brmaId) params.set("brmaId", input.brmaId)
+  if (input.postcode) params.set("postcode", input.postcode)
+  if (input.localAuthorityCode) params.set("localAuthorityCode", input.localAuthorityCode)
+  const response = await fetch(`/api/v2/housing/resolve-area?${params.toString()}`)
+  if (!response.ok) throw new Error(`Housing area resolution failed: ${response.status}`)
+  return response.json() as Promise<ResolvedHousingArea>
 }
 
 export async function createCaseFromPrototypeInput(input: AssessmentInput): Promise<CreateCaseV2Response> {
@@ -67,6 +114,16 @@ export async function createCaseFromPrototypeInput(input: AssessmentInput): Prom
             ? undefined
             : {
                 tenure: input.housing.tenure === "owner" ? "owner_occupier" : input.housing.tenure,
+                postcode: input.housing.postcode,
+                localAuthorityCode: input.housing.localAuthorityCode,
+                localAuthorityName: input.housing.localAuthorityName,
+                brmaCode: input.housing.brmaCode,
+                brmaName: input.housing.brmaName,
+                lhaBedroomCategory: input.housing.lhaBedroomCategory,
+                lhaMonthlyRate: input.housing.lhaMonthlyRate,
+                lhaWeeklyRate: input.housing.lhaWeeklyRate,
+                lhaDatasetVersion: input.housing.lhaDatasetVersion,
+                lhaDatasetChecksum: input.housing.lhaDatasetChecksum,
                 eligibleRent: input.housing.eligibleRentMonthly,
                 eligibleServiceCharges: input.housing.eligibleServiceChargesMonthly,
                 rentFrequency: "monthly",
@@ -81,9 +138,85 @@ export async function createCaseFromPrototypeInput(input: AssessmentInput): Prom
   return response.json() as Promise<CreateCaseV2Response>
 }
 
+export async function createCaseFromInterviewDraft(draft: ClaimantInterviewDraft): Promise<CreateCaseV2Response> {
+  const response = await fetch("/api/v2/cases", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      clientRequestId: crypto.randomUUID(),
+      schemaVersion: "case-create.v2",
+      assessmentPeriod: draft.assessmentPeriod,
+      household: {
+        adults: draft.adults.map((adult) => ({
+          role: adult.role,
+          dateOfBirth: adult.dateOfBirth,
+          immigrationStatus: adult.immigrationStatus,
+          habitualResidenceStatus: adult.habitualResidenceStatus,
+          studentStatus: adult.studentStatus,
+          prisonStatus: adult.prisonStatus
+        })),
+        housing: draft.housing.tenure === "none"
+          ? undefined
+          : {
+              tenure: draft.housing.tenure === "owner" ? "owner_occupier" : draft.housing.tenure,
+              postcode: draft.housing.postcode,
+              localAuthorityCode: draft.housing.localAuthorityCode,
+              localAuthorityName: draft.housing.localAuthorityName,
+              brmaCode: draft.housing.brmaCode,
+              brmaName: draft.housing.brmaName,
+              lhaBedroomCategory: draft.housing.lhaBedroomCategory,
+              lhaMonthlyRate: draft.housing.lhaMonthlyRate,
+              lhaWeeklyRate: draft.housing.lhaWeeklyRate,
+              lhaDatasetVersion: draft.housing.lhaDatasetVersion,
+              lhaDatasetChecksum: draft.housing.lhaDatasetChecksum,
+              eligibleRent: draft.housing.eligibleRentMonthly,
+              eligibleServiceCharges: draft.housing.eligibleServiceChargesMonthly,
+              rentFrequency: "monthly",
+              liabilityVerified: true,
+              landlordVerified: false
+            }
+      },
+      consent: { saveAssessment: true, storeLocalDraft: false }
+    })
+  })
+  if (!response.ok) throw new Error(`v2 case creation failed: ${response.status}`)
+  return response.json() as Promise<CreateCaseV2Response>
+}
+
+export async function appendInterviewEventsToCase(draft: ClaimantInterviewDraft, created: CreateCaseV2Response): Promise<void> {
+  for (const event of buildCaseEventDrafts(draft)) {
+    await appendCaseEventV2(created.caseId, created.accessToken, event)
+  }
+}
+
 export async function appendPrototypeEventsToCase(input: AssessmentInput, created: CreateCaseV2Response): Promise<void> {
   const today = new Date().toISOString().slice(0, 10)
   const events = [
+    ...(input.housing.tenure === "none"
+      ? []
+      : [{
+          eventType: "housing_declared",
+          occurredAt: today,
+          effectiveFrom: today,
+          payload: {
+            tenure: input.housing.tenure === "owner" ? "owner_occupier" : input.housing.tenure,
+            postcode: input.housing.postcode,
+            localAuthorityCode: input.housing.localAuthorityCode,
+            localAuthorityName: input.housing.localAuthorityName,
+            brmaCode: input.housing.brmaCode,
+            brmaName: input.housing.brmaName,
+            lhaBedroomCategory: input.housing.lhaBedroomCategory,
+            lhaMonthlyRate: input.housing.lhaMonthlyRate,
+            lhaWeeklyRate: input.housing.lhaWeeklyRate,
+            lhaDatasetVersion: input.housing.lhaDatasetVersion,
+            lhaDatasetChecksum: input.housing.lhaDatasetChecksum,
+            eligibleRent: input.housing.eligibleRentMonthly,
+            eligibleServiceCharges: input.housing.eligibleServiceChargesMonthly,
+            rentFrequency: "monthly",
+            liabilityVerified: true,
+            landlordVerified: false
+          }
+        }]),
     ...input.children.map((child) => ({
       eventType: "child_added",
       occurredAt: today,
@@ -223,7 +356,7 @@ export async function appendPrototypeEventsToCase(input: AssessmentInput, create
   }
 }
 
-async function appendCaseEventV2(caseId: string, accessToken: string, event: { eventType: string; occurredAt: string; effectiveFrom?: string; payload: unknown }) {
+async function appendCaseEventV2(caseId: string, accessToken: string, event: Pick<CaseEventDraft, "eventType" | "occurredAt" | "effectiveFrom" | "payload">) {
   const response = await fetch(`/api/v2/cases/${caseId}/events`, {
     method: "POST",
     headers: {

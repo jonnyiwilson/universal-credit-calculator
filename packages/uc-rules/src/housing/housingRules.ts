@@ -6,7 +6,7 @@ import type { HousingDeterminationArtifact } from "../artifacts/types"
 
 export const housingDeterminationRule: PolicyRule<ReducedAssessmentPeriodState, HousingDeterminationArtifact> = {
   ruleId: "HOUSING-DETERMINE-001",
-  ruleVersion: "2026.1.0",
+  ruleVersion: "2026.3.0",
   title: "Determine Universal Credit housing route and element",
   stage: "housing",
   effectiveFrom: "2026-04-06",
@@ -15,7 +15,7 @@ export const housingDeterminationRule: PolicyRule<ReducedAssessmentPeriodState, 
   appliesWhen: () => true,
   requiresEvidence: [],
   legalBasis: [universalCreditReferences.GOV_UK_UC_HOUSING_2026],
-  outputSchemaVersion: "housing-determination.v1",
+  outputSchemaVersion: "housing-determination.v2",
   evaluate: (input, context) => {
     const housing = input.housing
     const unsupportedCases: UnsupportedCase[] = []
@@ -70,7 +70,21 @@ export const housingDeterminationRule: PolicyRule<ReducedAssessmentPeriodState, 
       })
     }
 
-    if (housing.tenure === "social_rent" && (housing.bedroomEntitlement === undefined || housing.bedroomsOccupied === undefined)) {
+    const bedroomResult = determineBedroomEntitlement(input)
+    const bedroomEntitlement = housing.bedroomEntitlement ?? bedroomResult.bedrooms
+    if (bedroomResult.unsupportedReason) {
+      assumptions.push({
+        assumptionId: createEntityId("assumption"),
+        severity: "blocking",
+        code: "BEDROOM_ENTITLEMENT_UNSUPPORTED",
+        message: bedroomResult.unsupportedReason,
+        affectedRuleIds: ["HOUSING-DETERMINE-001"],
+        canUserResolve: true,
+        resolutionPrompt: "Confirm child bedroom-sharing details, overnight carer, foster child, and disability exceptions."
+      })
+    }
+
+    if (housing.tenure === "social_rent" && (bedroomEntitlement === undefined || housing.bedroomsOccupied === undefined)) {
       assumptions.push({
         assumptionId: createEntityId("assumption"),
         severity: "blocking",
@@ -93,10 +107,21 @@ export const housingDeterminationRule: PolicyRule<ReducedAssessmentPeriodState, 
       })
     }
 
-    const lhaCap = context.ratePack.rates.housing?.defaultLhaCapMonthly
-    const cap = housing.tenure === "private_rent" && lhaCap && typeof lhaCap === "object" ? lhaCap : addMoney(housing.eligibleRent, housing.eligibleServiceCharges)
+    const lhaCap = housing.lhaMonthlyRate
+    if (housing.tenure === "private_rent" && (!housing.brmaCode || !housing.lhaBedroomCategory || !lhaCap || !housing.lhaDatasetVersion || !housing.lhaDatasetChecksum)) {
+      assumptions.push({
+        assumptionId: createEntityId("assumption"),
+        severity: "blocking",
+        code: "RESOLVED_LHA_RATE_MISSING",
+        message: "Private rent requires a resolved BRMA, bedroom category, LHA rate and dataset version before the housing element can be safely estimated.",
+        affectedRuleIds: ["HOUSING-DETERMINE-001"],
+        canUserResolve: true,
+        resolutionPrompt: "Select a BRMA and bedroom category so the official LHA rate can be attached to the assessment."
+      })
+    }
+    const cap = housing.tenure === "private_rent" && lhaCap ? lhaCap : addMoney(housing.eligibleRent, housing.eligibleServiceCharges)
     const eligibleCosts = addMoney(housing.eligibleRent, housing.eligibleServiceCharges)
-    const underOccupiedBedrooms = housing.tenure === "social_rent" ? Math.max(0, (housing.bedroomsOccupied ?? 0) - (housing.bedroomEntitlement ?? 0)) : 0
+    const underOccupiedBedrooms = housing.tenure === "social_rent" ? Math.max(0, (housing.bedroomsOccupied ?? 0) - (bedroomEntitlement ?? 0)) : 0
     const underOccupancyRate = underOccupiedBedrooms >= 2
       ? Number(context.ratePack.rates.housing.socialRentUnderOccupancyTwoPlusBedroomRate ?? 0.25)
       : underOccupiedBedrooms === 1
@@ -114,11 +139,13 @@ export const housingDeterminationRule: PolicyRule<ReducedAssessmentPeriodState, 
       eligibleRent: housing.eligibleRent,
       eligibleServiceCharges: housing.eligibleServiceCharges,
       lhaCap: cap,
-      bedroomEntitlement: housing.bedroomEntitlement,
+      bedroomEntitlement,
       socialRentReduction,
       nonDependantDeductions,
       housingElement,
-      assumptions: assumptions.map((assumption) => assumption.assumptionId)
+      assumptions: assumptions.map((assumption) => assumption.assumptionId),
+      bedroomReason: bedroomResult.reason,
+      lhaLookupStatus: housing.tenure === "private_rent" ? lhaCap ? "matched" : "missing" : "not_required"
     }
     return response(input, artifact, assumptions, unsupportedCases)
 
@@ -137,11 +164,17 @@ export const housingDeterminationRule: PolicyRule<ReducedAssessmentPeriodState, 
           traceId: createEntityId("trace"),
           sequenceNumber: 1,
           ruleId: "HOUSING-DETERMINE-001",
-          ruleVersion: "2026.1.0",
+          ruleVersion: "2026.3.0",
           stage: "housing",
           legalBasis: [universalCreditReferences.GOV_UK_UC_HOUSING_2026],
           inputsHash: stableHash(state.housing ?? {}),
-          inputExcerpt: { tenure: state.housing?.tenure },
+          inputExcerpt: {
+            tenure: state.housing?.tenure,
+            brmaCode: state.housing?.brmaCode,
+            brmaName: state.housing?.brmaName,
+            lhaBedroomCategory: state.housing?.lhaBedroomCategory,
+            lhaDatasetVersion: state.housing?.lhaDatasetVersion
+          },
           output: artifact,
           evidenceRefs: state.housing?.evidenceRefs ?? [],
           assumptionRefs: artifact.assumptions,
@@ -150,8 +183,49 @@ export const housingDeterminationRule: PolicyRule<ReducedAssessmentPeriodState, 
         assumptions: ruleAssumptions,
         warnings: [],
         unsupportedCases: ruleUnsupportedCases,
-        derivedArtifacts: [{ artifactType: "housing_determination", schemaVersion: "housing-determination.v1", value: artifact }]
+        derivedArtifacts: [
+          {
+            artifactType: "area_resolution",
+            schemaVersion: "area-resolution.v1",
+            value: {
+              brmaCode: state.housing?.brmaCode,
+              brmaName: state.housing?.brmaName,
+              postcode: state.housing?.postcode,
+              localAuthorityCode: state.housing?.localAuthorityCode
+            }
+          },
+          { artifactType: "bedroom_entitlement", schemaVersion: "bedroom-entitlement.v1", value: { bedrooms: artifact.bedroomEntitlement, reason: artifact.bedroomReason } },
+          {
+            artifactType: "lha_lookup",
+            schemaVersion: "lha-lookup.v1",
+            value: {
+              status: artifact.lhaLookupStatus,
+              bedroomCategory: state.housing?.lhaBedroomCategory,
+              monthlyRate: state.housing?.lhaMonthlyRate,
+              weeklyRate: state.housing?.lhaWeeklyRate,
+              datasetVersion: state.housing?.lhaDatasetVersion,
+              datasetChecksum: state.housing?.lhaDatasetChecksum,
+              cap: artifact.lhaCap
+            }
+          },
+          { artifactType: "non_dependant_deductions", schemaVersion: "non-dependant-deductions.v1", value: { amount: artifact.nonDependantDeductions } },
+          { artifactType: "housing_route", schemaVersion: "housing-route.v1", value: { route: artifact.route, status: artifact.status } },
+          { artifactType: "housing_determination", schemaVersion: "housing-determination.v2", value: artifact }
+        ]
       }
     }
   }
+}
+
+function determineBedroomEntitlement(input: ReducedAssessmentPeriodState): { bedrooms?: number; reason: string; unsupportedReason?: string } {
+  const adults = input.adults.length > 0 ? 1 : 0
+  if (input.children.length > 1) {
+    return {
+      bedrooms: undefined,
+      reason: "Child bedroom-sharing rules need age, sex, disability, and exception evidence.",
+      unsupportedReason: "Bedroom entitlement for multiple children needs child-sharing details before it can be safely calculated."
+    }
+  }
+  const childBedrooms = input.children.length === 1 ? 1 : 0
+  return { bedrooms: adults + childBedrooms, reason: "One bedroom for claimant/couple plus one bedroom for a single child where present." }
 }

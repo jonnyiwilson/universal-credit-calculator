@@ -82,6 +82,8 @@ export interface HousingDeterminationArtifact {
   nonDependantDeductions: Money
   housingElement: Money
   assumptions: EntityId[]
+  bedroomReason?: string
+  lhaLookupStatus?: "not_required" | "matched" | "missing" | "unsupported"
 }
 
 export interface HealthCarerArtifact {
@@ -114,6 +116,8 @@ export interface TransitionalProtectionArtifact {
   amount: Money
   erosion: Money
   reason?: string
+  baselineAmount?: Money
+  nilAwardHandling?: "not_applicable" | "paused" | "reinstatable" | "ceased"
 }
 
 export interface SanctionsDeductionsArtifact {
@@ -122,6 +126,16 @@ export interface SanctionsDeductionsArtifact {
   otherDeductions: Money
   recoveryCapApplied: boolean
   blockingReasons: string[]
+  sanctionDaysApplied?: number
+  deductionPriority?: Array<{ type: string; amount: Money; priority: number }>
+  recoveryCap?: Money
+}
+
+export interface SupportedSliceArtifact {
+  sliceId: "rev8-single-private-rent-employed"
+  status: "supported" | "unsupported"
+  blockingReasons: string[]
+  claimantMessage: string
 }
 
 export interface AwardElement {

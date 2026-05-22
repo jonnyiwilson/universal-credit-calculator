@@ -2,7 +2,7 @@ import { addMoney, createEntityId, gbp, stableHash, subtractMoney, zeroGbp } fro
 import type { ReducedAssessmentPeriodState, UnsupportedCase } from "../../../domain/src"
 import { universalCreditReferences } from "../../../legislation/src"
 import type { PolicyRule } from "../../../rules-engine/src"
-import type { AwardCompositionArtifact, AwardElement, AwardReduction, BenefitCapArtifact, CapitalAssessmentArtifact, ChildcareArtifact, EligibilityArtifact, HealthCarerArtifact, HousingDeterminationArtifact, IncomeAggregationArtifact, SanctionsDeductionsArtifact, SelfEmploymentArtifact, TransitionalProtectionArtifact, WorkAllowanceArtifact } from "../artifacts/types"
+import type { AwardCompositionArtifact, AwardElement, AwardReduction, BenefitCapArtifact, CapitalAssessmentArtifact, ChildcareArtifact, EligibilityArtifact, HealthCarerArtifact, HousingDeterminationArtifact, IncomeAggregationArtifact, SanctionsDeductionsArtifact, SelfEmploymentArtifact, SupportedSliceArtifact, TransitionalProtectionArtifact, WorkAllowanceArtifact } from "../artifacts/types"
 
 export const awardCompositionRule: PolicyRule<ReducedAssessmentPeriodState, AwardCompositionArtifact> = {
   ruleId: "AWARD-COMPOSE-001",
@@ -22,7 +22,8 @@ export const awardCompositionRule: PolicyRule<ReducedAssessmentPeriodState, Awar
     { ruleId: "CHILDCARE-DETERMINE-001" },
     { ruleId: "TP-ASSESS-001" },
     { ruleId: "DEDUCTIONS-SANCTIONS-001" },
-    { ruleId: "BENEFIT-CAP-001" }
+    { ruleId: "BENEFIT-CAP-001" },
+    { ruleId: "SUPPORTED-SLICE-REV8-001" }
   ],
   appliesWhen: () => true,
   requiresEvidence: [],
@@ -56,6 +57,7 @@ export const awardCompositionRule: PolicyRule<ReducedAssessmentPeriodState, Awar
     const tpArtifact = findDerived<TransitionalProtectionArtifact>(context, "transitional_protection_assessment")
     const sanctionsDeductionsArtifact = findDerived<SanctionsDeductionsArtifact>(context, "sanctions_deductions_assessment")
     const benefitCapArtifact = findDerived<BenefitCapArtifact>(context, "benefit_cap_assessment")
+    const supportedSliceArtifact = findDerived<SupportedSliceArtifact>(context, "supported_slice_rev8")
 
     if (!eligibilityArtifact || eligibilityArtifact.status === "unknown" || eligibilityArtifact.status === "unsupported") {
       unsupportedCases.push({
@@ -77,6 +79,17 @@ export const awardCompositionRule: PolicyRule<ReducedAssessmentPeriodState, Awar
         affectedStages: ["award_composition"],
         userMessage: "The final award cannot be shown because one or more required policy checks are incomplete.",
         internalNotes: "dependent derived artifact unsupported"
+      })
+    }
+    if (supportedSliceArtifact?.status !== "supported") {
+      unsupportedCases.push({
+        unsupportedCaseId: createEntityId("unsupported"),
+        code: "REV8_SUPPORTED_SLICE_REQUIRED",
+        severity: "blocking",
+        reason: "Award composition is production-gated to the verified REV8 journey.",
+        affectedStages: ["award_composition"],
+        userMessage: supportedSliceArtifact?.claimantMessage ?? "This case is outside the currently verified journey, so no confident award will be shown.",
+        internalNotes: JSON.stringify(supportedSliceArtifact?.blockingReasons ?? [])
       })
     }
 

@@ -10,6 +10,8 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lha:import": "node scripts/import-lha-rates.ts",
+    "postcode:import": "node scripts/postcode_lookup_importer.ts",
     "worker:dev": "wrangler dev src/workers/api/index.ts",
     "db:migrate:local": "wrangler d1 migrations apply uc_assessments --local"
   },
